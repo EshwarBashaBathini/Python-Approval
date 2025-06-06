@@ -4,7 +4,7 @@ from email.mime.multipart import MIMEMultipart
 import requests
 import time
 import threading
-from flask import Flask, render_template_string, redirect
+from flask import Flask, render_template_string, redirect, request
 
 # === CONFIGURATION ===
 smtp_user = "yaswanthkumarch2001@gmail.com"
@@ -41,6 +41,12 @@ def reject():
 @app.route('/status')
 def status():
     return approval_status, 200
+
+@app.route('/reset', methods=['POST'])
+def reset():
+    global approval_status
+    approval_status = "pending"
+    return "Approval status reset to pending.", 200
 
 # Start Flask server in background thread
 def start_server():
@@ -108,7 +114,9 @@ else:
     print("⌛ Approval timeout.")
 
 # === Keep the server alive ===
-print("🚀 Flask approval server is still running at:", public_url)
-print("✅ You can revisit /approve, /reject, or /status anytime.")
-
-
+try:
+    print("🚀 Flask approval server is running. Press Ctrl+C to stop.")
+    while True:
+        time.sleep(1)  # Keep the main thread alive
+except KeyboardInterrupt:
+    print("\n🛑 Server stopped by user.")
