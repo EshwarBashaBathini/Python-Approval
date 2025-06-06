@@ -50,7 +50,8 @@ def reset():
 
 # Start Flask server in background thread
 def start_server():
-    app.run(port=5000)
+    app.run(host="0.0.0.0", port=5000)
+
 
 server_thread = threading.Thread(target=start_server, daemon=True)
 server_thread.start()

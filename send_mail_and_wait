@@ -1,0 +1,80 @@
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import requests
+import time
+import sys
+
+# === CONFIGURATION ===
+smtp_user = "yaswanthkumarch2001@gmail.com"
+smtp_password = "uqjc bszf djfw bsor"  # Use Gmail App Password
+to_email = "eshwar@middlewaretalents.com"
+public_url = "https://0287-136-232-205-158.ngrok-free.app"  # Flask server ngrok URL
+
+# URLs for approval server endpoints
+status_url = f"{public_url}/status"
+approve_url = f"{public_url}/approve"
+reject_url = f"{public_url}/reject"
+
+# === Compose Email ===
+subject = "Harness Pipeline Approval Needed"
+html_body = f"""
+<html>
+  <body style="font-family: Arial;">
+    <p>Hi,<br><br>
+       Please review and take action on the pipeline.<br><br>
+       <a href="{approve_url}" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none;">Approve</a>
+       &nbsp;
+       <a href="{reject_url}" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none;">Reject</a><br><br>
+       Thanks,<br>CI Bot
+    </p>
+  </body>
+</html>
+"""
+
+msg = MIMEMultipart('alternative')
+msg['From'] = smtp_user
+msg['To'] = to_email
+msg['Subject'] = subject
+msg.attach(MIMEText(html_body, 'html'))
+
+# === Send Email ===
+try:
+    print("📧 Sending email...")
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.starttls()
+    server.login(smtp_user, smtp_password)
+    server.sendmail(smtp_user, to_email, msg.as_string())
+    server.quit()
+    print("✅ Email sent.")
+except Exception as e:
+    print("❌ Failed to send email:", e)
+    sys.exit(1)
+
+# === Poll for Approval ===
+print("⏳ Waiting for approval (10 minutes max)...")
+for i in range(60):
+    try:
+        res = requests.get(status_url)
+        res.raise_for_status()
+        data = res.json()
+        status = data.get("status", "").lower()
+
+        if status in ["approved", "rejected"]:
+            print(f"🔔 Pipeline {status.upper()} received.")
+            if status == "approved":
+                print("✅ Proceeding to next stage...")
+                sys.exit(0)
+            else:
+                print("🛑 Pipeline rejected. Aborting stage.")
+                sys.exit(1)
+        else:
+            print(f"⌛ Current status: {status}. Waiting...")
+
+    except Exception as err:
+        print(f"🔁 Check {i+1}/60 failed:", err)
+    time.sleep(10)
+
+# If timeout
+print("⌛ Approval timeout. Aborting.")
+sys.exit(1)
