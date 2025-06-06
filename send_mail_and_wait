@@ -17,6 +17,14 @@ approve_url = f"{public_url}/approve"
 reject_url = f"{public_url}/reject"
 reset_url = f"{public_url}/reset"
 
+# === Reset status to pending at start ===
+try:
+    requests.post(reset_url)
+    print("🔄 Initial status reset to pending.")
+except Exception as reset_init_err:
+    print("⚠️ Failed to reset status at start:", reset_init_err)
+    sys.exit(1)
+
 # === Compose Email ===
 subject = "Harness Pipeline Approval Needed"
 html_body = f"""
@@ -64,7 +72,7 @@ for i in range(60):  # Check every 10 seconds for 10 minutes
         if status in ["approved", "rejected"]:
             print(f"🔔 Pipeline {status.upper()} received.")
 
-            # Reset status to pending for next run
+            # Reset status for future runs
             try:
                 requests.post(reset_url)
                 print("🔄 Status reset to pending.")
