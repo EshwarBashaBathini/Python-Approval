@@ -41,27 +41,32 @@ html_body = f"""
       }}
       .container {{
         max-width: 600px;
-        margin: auto;
+        margin: 30px auto; /* center horizontally and add vertical space */
         background-color: #ffffff;
         padding: 25px 30px;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        text-align: center;
+        text-align: left; /* make content left aligned */
       }}
       h2 {{
         color: #2f3640;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+        text-align: center; /* heading centered */
       }}
       p {{
         font-size: 16px;
         line-height: 1.5;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
+      }}
+      .button-container {{
+        text-align: center; /* center buttons */
+        margin-bottom: 30px;
       }}
       .button {{
         display: inline-block;
-        padding: 4px 10px;       /* Smaller padding */
-        margin-right: 12px;
-        font-size: 12px;         /* Smaller font */
+        padding: 4px 10px;       /* smaller padding */
+        margin: 0 8px;
+        font-size: 12px;         /* smaller font */
         font-weight: 600;
         color: #ffffff !important;
         text-decoration: none !important;
@@ -88,20 +93,23 @@ html_body = f"""
         margin-top: 30px;
         font-size: 13px;
         color: #888888;
+        text-align: center;
       }}
       .top-image {{
         max-width: 120px;
         height: auto;
-        margin-bottom: 20px;
+        margin: 0 auto 20px auto;
+        display: block;
         border-radius: 8px;
       }}
       .bottom-image {{
-        width: 100%;      /* Full width */
-        height: auto;     /* Auto height to keep aspect ratio */
+        width: 100%;
+        height: auto;
         margin-top: 30px;
         margin-bottom: 0;
         border-radius: 8px;
         object-fit: cover;
+        display: block;
       }}
     </style>
   </head>
@@ -116,10 +124,12 @@ html_body = f"""
         The deployment pipeline requires your approval to proceed to the next stage.
         Kindly review the details and take action by clicking one of the buttons below:
       </p>
-      <p>
+
+      <div class="button-container">
         <a href="{approve_url}" class="button approve-button" target="_blank" rel="noopener noreferrer">Approve ✅</a>
         <a href="{reject_url}" class="button reject-button" target="_blank" rel="noopener noreferrer">Reject ❌</a>
-      </p>
+      </div>
+
       <p class="footer">
         If you did not expect this request or have any questions, please contact the CI/CD administrator.
       </p>
