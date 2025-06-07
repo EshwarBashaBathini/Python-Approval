@@ -11,35 +11,132 @@ smtp_password = "uqjc bszf djfw bsor"  # Use Gmail App Password
 to_email = "eshwar@middlewaretalents.com"
 public_url = "https://c74d-136-232-205-158.ngrok-free.app"  # Flask server ngrok URL
 
-# URLs for approval server endpoints
-status_url = f"{public_url}/status"
-approve_url = f"{public_url}/approve"
-reject_url = f"{public_url}/reject"
-reset_url = f"{public_url}/reset"
-
-# === Reset status to pending at start ===
+# === Step 1: Generate a new token ===
 try:
-    requests.post(reset_url)
-    print("🔄 Initial status reset to pending.")
-except Exception as reset_init_err:
-    print("⚠️ Failed to reset status at start:", reset_init_err)
+    print("🔑 Generating approval token...")
+    response = requests.post(f"{public_url}/generate_token")
+    response.raise_for_status()
+    token = response.json()["token"]
+    print(f"✅ Token generated: {token}")
+except Exception as e:
+    print("❌ Failed to generate token:", e)
     sys.exit(1)
 
-# === Compose Email ===
-subject = "Harness Pipeline Approval Needed"
+# Build URLs using the token
+status_url = f"{public_url}/status/{token}"
+approve_url = f"{public_url}/approve/{token}"
+reject_url = f"{public_url}/reject/{token}"
+
+# === Step 2: Compose the email ===
 html_body = f"""
 <html>
-  <body style="font-family: Arial;">
-    <p>Hi,<br><br>
-       Please review and take action on the pipeline.<br><br>
-       <a href="{approve_url}" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none;">Approve</a>
-       &nbsp;
-       <a href="{reject_url}" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none;">Reject</a><br><br>
-       Thanks,<br>CI Bot
-    </p>
+  <head>
+    <style>
+      body {{
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f6fa;
+        margin: 0;
+        padding: 20px;
+        color: #333333;
+      }}
+      .container {{
+        max-width: 600px;
+        margin: auto;
+        background-color: #ffffff;
+        padding: 25px 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        text-align: center;
+      }}
+      h2 {{
+        color: #2f3640;
+        margin-bottom: 15px;
+      }}
+      p {{
+        font-size: 16px;
+        line-height: 1.5;
+        margin-bottom: 25px;
+      }}
+      .button {{
+        display: inline-block;
+        padding: 4px 10px;       /* Smaller padding */
+        margin-right: 12px;
+        font-size: 12px;         /* Smaller font */
+        font-weight: 600;
+        color: #ffffff !important;
+        text-decoration: none !important;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+      }}
+      .approve-button {{
+        background-color: #007bff;
+        border: 1px solid #007bff;
+      }}
+      .approve-button:hover {{
+        background-color: #0056b3 !important;
+        border-color: #0056b3 !important;
+      }}
+      .reject-button {{
+        background-color: #dc3545;
+        border: 1px solid #dc3545;
+      }}
+      .reject-button:hover {{
+        background-color: #a71d2a !important;
+        border-color: #a71d2a !important;
+      }}
+      .footer {{
+        margin-top: 30px;
+        font-size: 13px;
+        color: #888888;
+      }}
+      .top-image {{
+        max-width: 120px;
+        height: auto;
+        margin-bottom: 20px;
+        border-radius: 8px;
+      }}
+      .bottom-image {{
+        width: 100%;      /* Full width */
+        height: auto;     /* Auto height to keep aspect ratio */
+        margin-top: 30px;
+        margin-bottom: 0;
+        border-radius: 8px;
+        object-fit: cover;
+      }}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Top image -->
+      <img src="https://res.cloudinary.com/dtc3rf1du/image/upload/v1746768920/thumbnail_Outlook-rtnt4ung_lav9tr.png" alt="Company Logo" class="top-image" />
+
+      <h2>Pipeline Deployment Approval Required</h2>
+      <p>Dear Manager,</p>
+      <p>
+        The deployment pipeline requires your approval to proceed to the next stage.
+        Kindly review the details and take action by clicking one of the buttons below:
+      </p>
+      <p>
+        <a href="{approve_url}" class="button approve-button" target="_blank" rel="noopener noreferrer">Approve ✅</a>
+        <a href="{reject_url}" class="button reject-button" target="_blank" rel="noopener noreferrer">Reject ❌</a>
+      </p>
+      <p class="footer">
+        If you did not expect this request or have any questions, please contact the CI/CD administrator.
+      </p>
+
+      <!-- Bottom image -->
+      <img src="https://res.cloudinary.com/dtc3rf1du/image/upload/v1746786795/1745938662031_mnpq0d.jpg" alt="Footer Banner" class="bottom-image" />
+
+      <p class="footer">
+        &copy; {time.strftime('%Y')} Continuous Integration Bot
+      </p>
+    </div>
   </body>
 </html>
 """
+
+
+subject = "Harness Pipeline Approval Needed"
 
 msg = MIMEMultipart('alternative')
 msg['From'] = smtp_user
@@ -47,9 +144,9 @@ msg['To'] = to_email
 msg['Subject'] = subject
 msg.attach(MIMEText(html_body, 'html'))
 
-# === Send Email ===
+# === Step 3: Send the email ===
 try:
-    print("📧 Sending email...")
+    print("📧 Sending approval email...")
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
     server.login(smtp_user, smtp_password)
@@ -60,25 +157,16 @@ except Exception as e:
     print("❌ Failed to send email:", e)
     sys.exit(1)
 
-# === Poll for Approval ===
+# === Step 4: Poll for approval decision ===
 print("⏳ Waiting for approval (10 minutes max)...")
-for i in range(60):  # Check every 10 seconds for 10 minutes
+for i in range(60):  # 60 * 10 seconds = 10 minutes
     try:
         res = requests.get(status_url)
         res.raise_for_status()
-        data = res.json()
-        status = data.get("status", "").lower()
+        status = res.json().get("status", "").lower()
 
         if status in ["approved", "rejected"]:
             print(f"🔔 Pipeline {status.upper()} received.")
-
-            # Reset status for future runs
-            try:
-                requests.post(reset_url)
-                print("🔄 Status reset to pending.")
-            except Exception as reset_err:
-                print("⚠️ Failed to reset status:", reset_err)
-
             if status == "approved":
                 print("✅ Proceeding to next stage...")
                 sys.exit(0)
@@ -89,9 +177,10 @@ for i in range(60):  # Check every 10 seconds for 10 minutes
             print(f"⌛ Current status: {status}. Waiting...")
 
     except Exception as err:
-        print(f"🔁 Check {i+1}/60 failed:", err)
+        print(f"⚠️ Poll attempt {i+1}/60 failed:", err)
+
     time.sleep(10)
 
-# If timeout
+# === Step 5: Timeout fallback ===
 print("⌛ Approval timeout. Aborting.")
 sys.exit(1)
