@@ -9,7 +9,7 @@ import sys
 smtp_user = "yaswanthkumarch2001@gmail.com"
 smtp_password = "uqjc bszf djfw bsor"  # Use Gmail App Password
 to_email = "eshwar@middlewaretalents.com"
-public_url = "https://0287-136-232-205-158.ngrok-free.app"  # Flask server ngrok URL
+public_url = "https://c74d-136-232-205-158.ngrok-free.app"  # Flask server ngrok URL
 
 # URLs for approval server endpoints
 status_url = f"{public_url}/status"
