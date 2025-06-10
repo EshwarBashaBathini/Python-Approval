@@ -9,188 +9,173 @@ import sys
 smtp_user = "yaswanthkumarch2001@gmail.com"
 smtp_password = "uqjc bszf djfw bsor"  # Use Gmail App Password
 to_email = "eshwar@middlewaretalents.com"
-public_url = "https://c74d-136-232-205-158.ngrok-free.app"  # Flask server ngrok URL
+public_url = "https://465e-136-232-205-158.ngrok-free.app"  # Replace with your actual Flask server URL
 
-# === Step 1: Generate a new token ===
-try:
-    print("🔑 Generating approval token...")
-    response = requests.post(f"{public_url}/generate_token")
-    response.raise_for_status()
-    token = response.json()["token"]
-    print(f"✅ Token generated: {token}")
-except Exception as e:
-    print("❌ Failed to generate token:", e)
-    sys.exit(1)
+MAX_RETRIES = 3
+POLL_INTERVAL = 10  # seconds
+MAX_WAIT_TIME = 10 * 60  # 10 minutes in seconds
 
-# Build URLs using the token
-status_url = f"{public_url}/status/{token}"
-approve_url = f"{public_url}/approve/{token}"
-reject_url = f"{public_url}/reject/{token}"
+def generate_token():
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = requests.post(f"{public_url}/generate_token", timeout=5)
+            resp.raise_for_status()
+            return resp.json()["token"]
+        except Exception as e:
+            print(f"Attempt {attempt+1} to generate token failed:", e)
+            if attempt == MAX_RETRIES - 1:
+                sys.exit(1)
+            time.sleep(2)
 
-# === Step 2: Compose the email ===
-html_body = f"""
+def send_email(approval_link):
+    subject = f"🚀 Deployment Approval Needed - {time.strftime('%Y-%m-%d %H:%M')}"
+    html_body = f"""
 <html>
   <head>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
       body {{
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f5f6fa;
-        margin: 0;
-        padding: 20px;
-        color: #333333;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+          Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        background-color: #f7fafc;
+        margin: 0; padding: 20px;
       }}
       .container {{
+        background: #ffffff;
         max-width: 600px;
-        margin: 30px auto; /* center horizontally and add vertical space */
-        background-color: #ffffff;
-        padding: 25px 30px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        text-align: left; /* make content left aligned */
+        margin: 0 auto;
+        padding: 30px 40px;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
       }}
       h2 {{
-        color: #2f3640;
-        margin-bottom: 20px;
-        text-align: center; /* heading centered */
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 28px;
+        margin-bottom: 15px;
+        text-align: center;
       }}
       p {{
         font-size: 16px;
-        line-height: 1.5;
-        margin-bottom: 20px;
+        color: #555;
+        line-height: 1.6;
       }}
       .button-container {{
-        text-align: center; /* center buttons */
-        margin-bottom: 30px;
-      }}
-      .button {{
-        display: inline-block;
-        padding: 4px 10px;       /* smaller padding */
-        margin: 0 8px;
-        font-size: 12px;         /* smaller font */
-        font-weight: 600;
-        color: #ffffff !important;
-        text-decoration: none !important;
-        border-radius: 5px;
-        transition: background-color 0.3s ease;
-      }}
-      .approve-button {{
-        background-color: #007bff;
-        border: 1px solid #007bff;
-      }}
-      .approve-button:hover {{
-        background-color: #0056b3 !important;
-        border-color: #0056b3 !important;
-      }}
-      .reject-button {{
-        background-color: #dc3545;
-        border: 1px solid #dc3545;
-      }}
-      .reject-button:hover {{
-        background-color: #a71d2a !important;
-        border-color: #a71d2a !important;
-      }}
-      .footer {{
-        margin-top: 30px;
-        font-size: 13px;
-        color: #888888;
+        margin: 30px 0;
         text-align: center;
       }}
-      .top-image {{
-        max-width: 120px;
-        height: auto;
-        margin: 0 auto 20px auto;
-        display: block;
+      a.button {{
+        background: #2563eb;
+        color: #ffffff !important;
+        text-decoration: none;
+        padding: 14px 30px;
+        font-weight: 600;
+        font-size: 17px;
         border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
+        transition: background-color 0.3s ease;
+        display: inline-block;
       }}
-      .bottom-image {{
-        width: 100%;
-        height: auto;
+      a.button:hover {{
+        background: #1d4ed8;
+      }}
+      .footer {{
+        font-size: 13px;
+        color: #999;
+        text-align: center;
         margin-top: 30px;
-        margin-bottom: 0;
-        border-radius: 8px;
-        object-fit: cover;
-        display: block;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 15px;
+        font-style: italic;
       }}
     </style>
   </head>
   <body>
     <div class="container">
-      <!-- Top image -->
-      <img src="https://res.cloudinary.com/dtc3rf1du/image/upload/v1746768920/thumbnail_Outlook-rtnt4ung_lav9tr.png" alt="Company Logo" class="top-image" />
-
-      <h2>Pipeline Deployment Approval Required</h2>
-      <p>Dear Manager,</p>
-      <p>
-        The deployment pipeline requires your approval to proceed to the next stage.
-        Kindly review the details and take action by clicking one of the buttons below:
-      </p>
-
+      <h2>🚨 Deployment Approval Request</h2>
+      <p>Hello,</p>
+      <p>The deployment pipeline requires your immediate attention and approval to proceed. Please review the details and respond by clicking the button below.</p>
       <div class="button-container">
-        <a href="{approve_url}" class="button approve-button" target="_blank" rel="noopener noreferrer">Approve ✅</a>
-        <a href="{reject_url}" class="button reject-button" target="_blank" rel="noopener noreferrer">Reject ❌</a>
+        <a href="{approval_link}" target="_blank" class="button">Approve or Reject Deployment</a>
       </div>
-
-      <p class="footer">
-        If you did not expect this request or have any questions, please contact the CI/CD administrator.
-      </p>
-
-      <!-- Bottom image -->
-      <img src="https://res.cloudinary.com/dtc3rf1du/image/upload/v1746786795/1745938662031_mnpq0d.jpg" alt="Footer Banner" class="bottom-image" />
-
-      <p class="footer">
-        &copy; {time.strftime('%Y')} Continuous Integration Bot
-      </p>
+      <p>If you did not expect this request, please contact the DevOps team immediately.</p>
+      <p class="footer">&copy; {time.strftime('%Y')} Your Company. All rights reserved.</p>
     </div>
   </body>
 </html>
 """
+    msg = MIMEMultipart('alternative')
+    msg['From'] = smtp_user
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(html_body, 'html'))
 
-
-subject = "Harness Pipeline Approval Needed"
-
-msg = MIMEMultipart('alternative')
-msg['From'] = smtp_user
-msg['To'] = to_email
-msg['Subject'] = subject
-msg.attach(MIMEText(html_body, 'html'))
-
-# === Step 3: Send the email ===
-try:
-    print("📧 Sending approval email...")
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    server.starttls()
-    server.login(smtp_user, smtp_password)
-    server.sendmail(smtp_user, to_email, msg.as_string())
-    server.quit()
-    print("✅ Email sent.")
-except Exception as e:
-    print("❌ Failed to send email:", e)
-    sys.exit(1)
-
-# === Step 4: Poll for approval decision ===
-print("⏳ Waiting for approval (10 minutes max)...")
-for i in range(60):  # 60 * 10 seconds = 10 minutes
+    print("Sending approval email...")
     try:
-        res = requests.get(status_url)
-        res.raise_for_status()
-        status = res.json().get("status", "").lower()
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.sendmail(smtp_user, to_email, msg.as_string())
+        server.quit()
+        print("Email sent successfully.")
+    except Exception as e:
+        print("Failed to send email:", e)
+        sys.exit(1)
 
-        if status in ["approved", "rejected"]:
-            print(f"🔔 Pipeline {status.upper()} received.")
-            if status == "approved":
-                print("✅ Proceeding to next stage...")
-                sys.exit(0)
-            else:
-                print("🛑 Pipeline rejected. Aborting stage.")
-                sys.exit(1)
-        else:
-            print(f"⌛ Current status: {status}. Waiting...")
+def poll_approval_status(token):
+    print(f"Waiting for approval decision (up to {MAX_WAIT_TIME//60} minutes)...")
+    elapsed = 0
+    while elapsed < MAX_WAIT_TIME:
+        try:
+            resp = requests.get(f"{public_url}/status/{token}", timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            status = data.get("status", "").lower()
+            used = data.get("used", False)
+            reason = data.get("reason", "")
 
-    except Exception as err:
-        print(f"⚠️ Poll attempt {i+1}/60 failed:", err)
+            if used and status == "pending":
+                # This can happen if the form was submitted but status not updated - treat as expired
+                print("Approval link has been used but no decision recorded. Treating as expired.")
+                return None, None
 
-    time.sleep(10)
+            if status in ["approved", "rejected"]:
+                print(f"Decision received: {status.upper()}")
+                print(f"Reason: {reason}")
+                return status, reason
 
-# === Step 5: Timeout fallback ===
-print("⌛ Approval timeout. Aborting.")
-sys.exit(1)
+            if used and status == "pending":
+                # token used but no status change — treat as expired
+                print("Approval link used without decision. Expired.")
+                return None, None
+
+            print(f"Still pending... checked at {time.strftime('%H:%M:%S')}")
+        except Exception as e:
+            print("Error polling status:", e)
+
+        time.sleep(POLL_INTERVAL)
+        elapsed += POLL_INTERVAL
+
+    print("Timeout waiting for approval.")
+    return None, None
+
+def main():
+    token = generate_token()
+    approval_link = f"{public_url}/approval/{token}"
+    send_email(approval_link)
+
+    status, reason = poll_approval_status(token)
+
+    if status == "approved":
+        print("✅ Deployment approved. Proceeding with pipeline.")
+        # Proceed with pipeline actions here
+    elif status == "rejected":
+        print("❌ Deployment rejected. Aborting pipeline.")
+        # Abort pipeline or notify here
+        sys.exit(1)
+    else:
+        print("⚠️ No valid response received or link expired. Aborting pipeline.")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
