@@ -52,7 +52,7 @@ while IFS= read -r line; do
   # local hec token: 69c3a7ed-d6d5-434a-b19d-4f739f3f8683
     curl --silent --output /dev/null \
          -k https://prd-p-p4d4r.splunkcloud.com:8088/services/collector \
-         -H "Authorization: Splunk 0202e8d8-f18c-4424-ab11-ad4d805927b1" \
+         -H "Authorization: Splunk 666a93a7-b613-4272-8da8-d1662429936e" \
          -H "Content-Type: application/json" \
          -d "{
                 \"time\": $EVENT_EPOCH,
