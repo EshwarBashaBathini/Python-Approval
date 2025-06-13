@@ -51,14 +51,14 @@ while IFS= read -r line; do
   # local url: https://323f-136-232-205-158.ngrok-free.app
   # local hec token: 69c3a7ed-d6d5-434a-b19d-4f739f3f8683
     curl --silent --output /dev/null \
-         -k https://prd-p-xugh6.splunkcloud.com:8088/services/collector \
+         -k https://prd-p-p4d4r.splunkcloud.com:8088/services/collector \
          -H "Authorization: Splunk 0202e8d8-f18c-4424-ab11-ad4d805927b1" \
          -H "Content-Type: application/json" \
          -d "{
                 \"time\": $EVENT_EPOCH,
                 \"event\": \"$line\",
                 \"sourcetype\": \"automatic\",
-                \"index\": \"harness_test\"
+                \"index\": \"devops\"
              }"
 
     if [ $? -eq 0 ]; then
