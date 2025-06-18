@@ -19,8 +19,8 @@ PRIORITY="3"
 RISK="2"
 IMPACT="2"
 
-CI_SYS_IDS= ("281a4d5fc0a8000b00e4ba489a83eedc")
-SERVICE_SYS_ID= ("281a4d5fc0a8000b00e4ba489a83eedc")
+CI_SYS_IDS=("281a4d5fc0a8000b00e4ba489a83eedc")
+# SERVICE_SYS_ID=("281a4d5fc0a8000b00e4ba489a83eedc")
 SERVICE_OFFERING_SYS_ID="PUT_YOUR_SERVICE_OFFERING_SYS_ID_HERE"
 
 IMPLEMENTATION_PLAN="Deploy updated Splunk logging integration via Harness CI pipeline."
@@ -41,7 +41,7 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
   -H "Content-Type: application/json" \
   -d "{
         \"short_description\": \"Automated Change Request from Harness CI Pipeline\",
-        \"description\": \"Triggered via Harness pipeline. Deploying improved Splunk integration.\",
+        \"description\": \"Triggered automatically via Harness CI/CD pipeline to deploy updated log routing configurations. This change enhances the integration between application logs and Splunk, improves log granularity, and ensures real-time visibility into deployment events. Affects only the logging layer with no changes to core application functionality. Verified in staging prior to production rollout.\",
         \"category\": \"Software\",
         \"priority\": \"$PRIORITY\",
         \"risk\": \"$RISK\",
@@ -51,11 +51,11 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
         \"assigned_to\": \"$ASSIGNED_TO\",
         \"implementation_plan\": \"$IMPLEMENTATION_PLAN\",
         \"justification\": \"$JUSTIFICATION\",
-        \"u_risk_and_impact_analysis\": \"$RISK_ANALYSIS\",
+        \"u_risk_impact\": \"$RISK_ANALYSIS\",
         \"backout_plan\": \"$BACKOUT_PLAN\",
         \"test_plan\": \"$TEST_PLAN\",
         \"u_impacted_service\": \"$SERVICE_SYS_ID\",
-        \"service\": \"$SERVICE_SYS_ID\",
+        \"business_service\": \"IT Services\",
         \"service_offering\": \"$SERVICE_OFFERING_SYS_ID\",
         \"cmdb_ci\": \"${CI_SYS_IDS[0]}\"
       }")
