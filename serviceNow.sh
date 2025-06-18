@@ -40,7 +40,7 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
   -u "$SN_USER:$SN_PASS" \
   -H "Content-Type: application/json" \
   -d "{
-        \"short_description\": \"Automated Change Request from Harness CI Pipeline\",
+        \"short_description\": \"Automated Change Request from Harness CI Pipeline main \",
         \"description\": \"Triggered automatically via Harness CI/CD pipeline to deploy updated log routing configurations. This change enhances the integration between application logs and Splunk, improves log granularity, and ensures real-time visibility into deployment events. Affects only the logging layer with no changes to core application functionality. Verified in staging prior to production rollout.\",
         \"category\": \"Software\",
         \"priority\": \"$PRIORITY\",
