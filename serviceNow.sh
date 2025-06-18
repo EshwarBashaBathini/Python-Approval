@@ -19,7 +19,6 @@ PRIORITY="3"
 RISK="2"
 IMPACT="2"
 
-# ✅ Updated sys_id for CI and Service
 CI_SYS_IDS=("281a4d5fc0a8000b00e4ba489a83eedc")
 SERVICE_SYS_ID="281a4d5fc0a8000b00e4ba489a83eedc"
 
@@ -30,13 +29,9 @@ BACKOUT_PLAN="Rollback to previous build artifact and disable new HEC configurat
 TEST_PLAN="Test build in staging; validate log delivery to Splunk and ensure alerts are received."
 
 export TZ=Asia/Kolkata
-SCHEDULED_START=$(date -d '+5 minutes' +"%Y-%m-%d %H:%M:%S")
-SCHEDULED_END=$(date -d '+35 minutes' +"%Y-%m-%d %H:%M:%S")
 
 echo "=====================================" | tee "$LOG_FILE"
 echo "🚀 Creating Change Request..." | tee -a "$LOG_FILE"
-echo "📅 Scheduled Start (IST): $SCHEDULED_START" | tee -a "$LOG_FILE"
-echo "📅 Scheduled End (IST):   $SCHEDULED_END" | tee -a "$LOG_FILE"
 
 # ========== CREATE CHANGE REQUEST ==========
 CREATE_RESPONSE=$(curl --silent --show-error -X POST \
@@ -45,7 +40,7 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
   -H "Content-Type: application/json" \
   -d "{
         \"short_description\": \"Automated Change Request from Harness CI Pipeline\",
-        \"description\": \"Triggered automatically via Harness CI/CD pipeline to deploy updated log routing configurations. This change enhances the integration between application logs and Splunk, improves log granularity, and ensures real-time visibility into deployment events. Affects only the logging layer with no changes to core application functionality. Verified in staging prior to production rollout.\",
+        \"description\": \"Triggered via Harness pipeline. Deploying improved Splunk integration.\",
         \"category\": \"Software\",
         \"priority\": \"$PRIORITY\",
         \"risk\": \"$RISK\",
@@ -58,8 +53,6 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
         \"u_risk_and_impact_analysis\": \"$RISK_ANALYSIS\",
         \"backout_plan\": \"$BACKOUT_PLAN\",
         \"test_plan\": \"$TEST_PLAN\",
-        \"start_date\": \"$SCHEDULED_START\",
-        \"end_date\": \"$SCHEDULED_END\",
         \"u_impacted_service\": \"$SERVICE_SYS_ID\",
         \"service\": \"$SERVICE_SYS_ID\",
         \"cmdb_ci\": \"${CI_SYS_IDS[0]}\"
@@ -87,21 +80,22 @@ fi
 # ========== LINK AFFECTED CIs ==========
 echo "🔗 Linking Affected Configuration Items..." | tee -a "$LOG_FILE"
 for CI_SYS_ID in "${CI_SYS_IDS[@]}"; do
-  LINK_RESPONSE=$(curl --silent --user "$SN_USER:$SN_PASS" -X POST \
+  curl --silent --user "$SN_USER:$SN_PASS" -X POST \
     "https://$SN_INSTANCE/api/now/table/task_ci" \
     -H "Content-Type: application/json" \
     -d "{
           \"task\": \"$SYS_ID\",
           \"ci_item\": \"$CI_SYS_ID\"
-        }")
+        }" > /dev/null
   echo "🔧 Linked CI $CI_SYS_ID to Change Request $SYS_ID" | tee -a "$LOG_FILE"
 done
 
-# ========== MONITOR CHANGE STATE ==========
+# ========== MONITOR CHANGE REQUEST STATE ==========
 MAX_RETRIES=1000
 SLEEP_INTERVAL=15
 COUNT=0
 LAST_STATE=""
+SCHEDULED_SET=false
 
 while [ $COUNT -lt $MAX_RETRIES ]; do
   POLL_RESPONSE=$(curl --silent --user "$SN_USER:$SN_PASS" \
@@ -120,16 +114,34 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
     exit 2
   fi
 
-  if [[ "$CHANGE_STATE" == "-1" ]]; then
-    CURRENT_TIME=$(date +"%Y-%m-%d %H:%M:%S")
-    if [[ "$CURRENT_TIME" < "$SCHEDULED_START" ]]; then
-      echo "🕒 Change is in 'Implement' state, waiting until: $SCHEDULED_START IST" | tee -a "$LOG_FILE"
-      UNTIL_EPOCH=$(date -d "$SCHEDULED_START" +%s)
-      NOW_EPOCH=$(date +%s)
-      SLEEP_DURATION=$(( UNTIL_EPOCH - NOW_EPOCH ))
-      [ $SLEEP_DURATION -gt 0 ] && sleep $SLEEP_DURATION
-    fi
-    echo "✅ Change Request is in 'Implement' state and scheduled time has arrived." | tee -a "$LOG_FILE"
+  if [[ "$CHANGE_STATE" == "-2" && "$SCHEDULED_SET" == "false" ]]; then
+    echo "📆 Change is now in 'Scheduled' state. Setting schedule time..." | tee -a "$LOG_FILE"
+    
+    SCHEDULED_START=$(date -d '+5 minutes' +"%Y-%m-%d %H:%M:%S")
+    SCHEDULED_END=$(date -d '+35 minutes' +"%Y-%m-%d %H:%M:%S")
+
+    curl --silent --user "$SN_USER:$SN_PASS" -X PATCH \
+      "https://$SN_INSTANCE/api/now/table/change_request/$SYS_ID" \
+      -H "Content-Type: application/json" \
+      -d "{
+            \"start_date\": \"$SCHEDULED_START\",
+            \"end_date\": \"$SCHEDULED_END\"
+          }" > /dev/null
+
+    echo "✅ Scheduled Start: $SCHEDULED_START" | tee -a "$LOG_FILE"
+    echo "✅ Scheduled End:   $SCHEDULED_END" | tee -a "$LOG_FILE"
+
+    UNTIL_EPOCH=$(date -d "$SCHEDULED_START" +%s)
+    NOW_EPOCH=$(date +%s)
+    SLEEP_DURATION=$(( UNTIL_EPOCH - NOW_EPOCH ))
+
+    echo "⏳ Waiting until scheduled start time ($SLEEP_DURATION seconds)..." | tee -a "$LOG_FILE"
+    [ $SLEEP_DURATION -gt 0 ] && sleep $SLEEP_DURATION
+    SCHEDULED_SET=true
+  fi
+
+  if [[ "$CHANGE_STATE" == "-1" && "$SCHEDULED_SET" == "true" ]]; then
+    echo "🚀 Change Request is now in 'Implement' state. Proceeding with deployment." | tee -a "$LOG_FILE"
     exit 0
   fi
 
@@ -138,6 +150,5 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
   sleep $SLEEP_INTERVAL
 done
 
-echo "❌ Timeout: Change Request did not move to 'Implement' or 'Rejected' in time." | tee -a "$LOG_FILE"
+echo "❌ Timeout: Change Request did not move to 'Implement' in time." | tee -a "$LOG_FILE"
 exit 1
-#01
