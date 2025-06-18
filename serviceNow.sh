@@ -21,6 +21,7 @@ IMPACT="2"
 
 CI_SYS_IDS=("281a4d5fc0a8000b00e4ba489a83eedc")
 SERVICE_SYS_ID="281a4d5fc0a8000b00e4ba489a83eedc"
+SERVICE_OFFERING_SYS_ID="PUT_YOUR_SERVICE_OFFERING_SYS_ID_HERE"
 
 IMPLEMENTATION_PLAN="Deploy updated Splunk logging integration via Harness CI pipeline."
 JUSTIFICATION="Enhances observability and improves log accuracy for production monitoring."
@@ -55,6 +56,7 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
         \"test_plan\": \"$TEST_PLAN\",
         \"u_impacted_service\": \"$SERVICE_SYS_ID\",
         \"service\": \"$SERVICE_SYS_ID\",
+        \"service_offering\": \"$SERVICE_OFFERING_SYS_ID\",
         \"cmdb_ci\": \"${CI_SYS_IDS[0]}\"
       }")
 
@@ -116,7 +118,7 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
 
   if [[ "$CHANGE_STATE" == "-2" && "$SCHEDULED_SET" == "false" ]]; then
     echo "📆 Change is now in 'Scheduled' state. Setting schedule time..." | tee -a "$LOG_FILE"
-    
+
     SCHEDULED_START=$(date -d '+5 minutes' +"%Y-%m-%d %H:%M:%S")
     SCHEDULED_END=$(date -d '+35 minutes' +"%Y-%m-%d %H:%M:%S")
 
