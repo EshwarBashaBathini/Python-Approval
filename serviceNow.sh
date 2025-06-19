@@ -21,7 +21,7 @@ IMPACT="2"
 
 CI_SYS_IDS=("281a4d5fc0a8000b00e4ba489a83eedc")
 # SERVICE_SYS_ID=("281a4d5fc0a8000b00e4ba489a83eedc")
-SERVICE_OFFERING_SYS_ID="PUT_YOUR_SERVICE_OFFERING_SYS_ID_HERE"
+SERVICE_OFFERING_SYS_ID="eshwar"
 
 IMPLEMENTATION_PLAN="Deploy updated Splunk logging integration via Harness CI pipeline."
 JUSTIFICATION="Enhances observability and improves log accuracy for production monitoring."
@@ -51,7 +51,7 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
         \"assigned_to\": \"$ASSIGNED_TO\",
         \"implementation_plan\": \"$IMPLEMENTATION_PLAN\",
         \"justification\": \"$JUSTIFICATION\",
-        \"u_risk_impact\": \"$RISK_ANALYSIS\",
+        \"u_risk_impact_analysis\": \"$RISK_ANALYSIS\",
         \"backout_plan\": \"$BACKOUT_PLAN\",
         \"test_plan\": \"$TEST_PLAN\",
         \"u_impacted_service\": \"$SERVICE_SYS_ID\",
