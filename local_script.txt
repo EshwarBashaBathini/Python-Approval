@@ -28,6 +28,7 @@ RISK_ANALYSIS="Low risk as changes are limited to log format and routing. Impact
 BACKOUT_PLAN="Rollback to previous build artifact and disable new HEC configurations."
 TEST_PLAN="Test build in staging; validate log delivery to Splunk and ensure alerts are received."
 
+export TZ=Asia/Kolkata
 WAITED_FOR_START=false
 
 echo "=====================================" | tee "$LOG_FILE"
@@ -40,7 +41,7 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
   -H "Content-Type: application/json" \
   -d "{
         \"short_description\": \"Automated Change Request from Harness CI Pipeline main\",
-        \"description\": \"Triggered automatically via Harness CI/CD pipeline to deploy updated log routing configurations. This change enhances the integration between application logs and Splunk.\",
+        \"description\": \"Triggered automatically via Harness CI/CD pipeline to deploy updated log routing configurations. This change enhances the integration between application logs and Splunk, improves log granularity, and ensures real-time visibility into deployment events.\",
         \"category\": \"Software\",
         \"priority\": \"$PRIORITY\",
         \"risk\": \"$RISK\",
@@ -116,27 +117,31 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
   fi
 
   if [[ "$CHANGE_STATE" == "-2" && "$SCHEDULED_SET" == "false" ]]; then
-    # Initial schedule setup
-    UTC_START=$(date -u -d "+1 minutes" +"%Y-%m-%d %H:%M:%S")
-    UTC_END=$(date -u -d "+35 minutes" +"%Y-%m-%d %H:%M:%S")
+    # Schedule it initially
+    IST_START=$(date -d "+1 minutes" +"%Y-%m-%d %H:%M:%S")
+    IST_END=$(date -d "+35 minutes" +"%Y-%m-%d %H:%M:%S")
+    SCHEDULED_START=$(TZ=UTC date -d "$IST_START" +"%Y-%m-%d %H:%M:%S")
+    SCHEDULED_END=$(TZ=UTC date -d "$IST_END" +"%Y-%m-%d %H:%M:%S")
 
     curl --silent --user "$SN_USER:$SN_PASS" -X PATCH \
       "https://$SN_INSTANCE/api/now/table/change_request/$SYS_ID" \
       -H "Content-Type: application/json" \
       -d "{
-            \"start_date\": \"$UTC_START\",
-            \"end_date\": \"$UTC_END\"
+            \"start_date\": \"$SCHEDULED_START\",
+            \"end_date\": \"$SCHEDULED_END\"
           }" > /dev/null
 
-    echo "🕒 Scheduled Start (UTC): $UTC_START" | tee -a "$LOG_FILE"
-    echo "🕒 Scheduled End   (UTC): $UTC_END" | tee -a "$LOG_FILE"
+    echo "🕒 Scheduled IST Start: $IST_START" | tee -a "$LOG_FILE"
+    echo "🕒 Scheduled IST End:   $IST_END" | tee -a "$LOG_FILE"
+    echo "🌐 Scheduled UTC Start: $SCHEDULED_START" | tee -a "$LOG_FILE"
+    echo "🌐 Scheduled UTC End:   $SCHEDULED_END" | tee -a "$LOG_FILE"
 
     SCHEDULED_SET=true
     WAITED_FOR_START=true
   fi
 
   if [[ "$CHANGE_STATE" == "-1" ]]; then
-    # Fetch latest start_date from ServiceNow
+    # Get latest start_date from the current state
     NEW_START_DATE_UTC=$(echo "$POLL_RESPONSE" | grep -o '"start_date":"[^"]*' | sed 's/"start_date":"//' | cut -d'"' -f1)
 
     if [ -n "$NEW_START_DATE_UTC" ]; then
@@ -146,12 +151,12 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
       if [ $SCHEDULED_EPOCH -gt $NOW_EPOCH ]; then
         WAIT_DURATION=$(( SCHEDULED_EPOCH - NOW_EPOCH ))
         echo "🕓 Updated Scheduled Start (UTC): $NEW_START_DATE_UTC" | tee -a "$LOG_FILE"
-        echo "⏳ Waiting $WAIT_DURATION seconds until scheduled time..." | tee -a "$LOG_FILE"
+        echo "⏳ Waiting $WAIT_DURATION seconds until new scheduled time..." | tee -a "$LOG_FILE"
         sleep $WAIT_DURATION
       fi
     fi
 
-    echo "🚀 Change Request is in 'Implement' state. Proceeding with deployment." | tee -a "$LOG_FILE"
+    echo "🚀 Change Request in 'Implement' state. Proceeding with deployment." | tee -a "$LOG_FILE"
     exit 0
   fi
 
