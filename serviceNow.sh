@@ -41,7 +41,7 @@ CREATE_RESPONSE=$(curl --silent --show-error -X POST \
   -H "Content-Type: application/json" \
   -d "{
         \"short_description\": \"Automated Change Request from Harness CI Pipeline main\",
-        \"description\": \"Triggered automatically via Harness CI/CD pipeline to deploy updated log routing configurations. This change enhances the integration between application logs and Splunk, improves log granularity, and ensures real-time visibility into deployment events. Affects only the logging layer with no changes to core application functionality. Verified in staging prior to production rollout.\",
+        \"description\": \"Triggered automatically via Harness CI/CD pipeline to deploy updated log routing configurations. This change enhances the integration between application logs and Splunk, improves log granularity, and ensures real-time visibility into deployment events.\",
         \"category\": \"Software\",
         \"priority\": \"$PRIORITY\",
         \"risk\": \"$RISK\",
@@ -117,13 +117,11 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
   fi
 
   if [[ "$CHANGE_STATE" == "-2" && "$SCHEDULED_SET" == "false" ]]; then
-    # Get IST times first
-    IST_START=$(TZ="Asia/Kolkata" date -d "+5 minutes" +"%Y-%m-%d %H:%M:%S")
-    IST_END=$(TZ="Asia/Kolkata" date -d "+35 minutes" +"%Y-%m-%d %H:%M:%S")
-
-    # Convert IST to UTC for ServiceNow API
-    SCHEDULED_START=$(TZ="UTC" date -d "$IST_START" +"%Y-%m-%d %H:%M:%S")
-    SCHEDULED_END=$(TZ="UTC" date -d "$IST_END" +"%Y-%m-%d %H:%M:%S")
+    # Schedule it initially
+    IST_START=$(date -d "+1 minutes" +"%Y-%m-%d %H:%M:%S")
+    IST_END=$(date -d "+35 minutes" +"%Y-%m-%d %H:%M:%S")
+    SCHEDULED_START=$(TZ=UTC date -d "$IST_START" +"%Y-%m-%d %H:%M:%S")
+    SCHEDULED_END=$(TZ=UTC date -d "$IST_END" +"%Y-%m-%d %H:%M:%S")
 
     curl --silent --user "$SN_USER:$SN_PASS" -X PATCH \
       "https://$SN_INSTANCE/api/now/table/change_request/$SYS_ID" \
@@ -133,25 +131,31 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
             \"end_date\": \"$SCHEDULED_END\"
           }" > /dev/null
 
-    echo "🕒 Local IST Scheduled Start: $IST_START" | tee -a "$LOG_FILE"
-    echo "🕒 Local IST Scheduled End:   $IST_END" | tee -a "$LOG_FILE"
-    echo "🌐 UTC Scheduled Start: $SCHEDULED_START" | tee -a "$LOG_FILE"
-    echo "🌐 UTC Scheduled End:   $SCHEDULED_END" | tee -a "$LOG_FILE"
-
-    SCHEDULED_EPOCH=$(date -d "$SCHEDULED_START" +%s)
-    NOW_EPOCH=$(date +%s)
-    SLEEP_DURATION=$(( SCHEDULED_EPOCH - NOW_EPOCH ))
-
-    if [ $SLEEP_DURATION -gt 0 ]; then
-      echo "⏳ Waiting $SLEEP_DURATION seconds for scheduled time..." | tee -a "$LOG_FILE"
-      sleep $SLEEP_DURATION
-    fi
+    echo "🕒 Scheduled IST Start: $IST_START" | tee -a "$LOG_FILE"
+    echo "🕒 Scheduled IST End:   $IST_END" | tee -a "$LOG_FILE"
+    echo "🌐 Scheduled UTC Start: $SCHEDULED_START" | tee -a "$LOG_FILE"
+    echo "🌐 Scheduled UTC End:   $SCHEDULED_END" | tee -a "$LOG_FILE"
 
     SCHEDULED_SET=true
     WAITED_FOR_START=true
   fi
 
-  if [[ "$CHANGE_STATE" == "-1" && "$WAITED_FOR_START" == "true" ]]; then
+  if [[ "$CHANGE_STATE" == "-1" ]]; then
+    # Get latest start_date from the current state
+    NEW_START_DATE_UTC=$(echo "$POLL_RESPONSE" | grep -o '"start_date":"[^"]*' | sed 's/"start_date":"//' | cut -d'"' -f1)
+
+    if [ -n "$NEW_START_DATE_UTC" ]; then
+      SCHEDULED_EPOCH=$(date -d "$NEW_START_DATE_UTC UTC" +%s)
+      NOW_EPOCH=$(date +%s)
+
+      if [ $SCHEDULED_EPOCH -gt $NOW_EPOCH ]; then
+        WAIT_DURATION=$(( SCHEDULED_EPOCH - NOW_EPOCH ))
+        echo "🕓 Updated Scheduled Start (UTC): $NEW_START_DATE_UTC" | tee -a "$LOG_FILE"
+        echo "⏳ Waiting $WAIT_DURATION seconds until new scheduled time..." | tee -a "$LOG_FILE"
+        sleep $WAIT_DURATION
+      fi
+    fi
+
     echo "🚀 Change Request in 'Implement' state. Proceeding with deployment." | tee -a "$LOG_FILE"
     exit 0
   fi
