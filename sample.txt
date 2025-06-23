@@ -117,13 +117,8 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
   fi
 
   if [[ "$CHANGE_STATE" == "-2" && "$SCHEDULED_SET" == "false" ]]; then
-    # Get IST times first
-    IST_START=$(TZ="Asia/Kolkata" date -d "+5 minutes" +"%Y-%m-%d %H:%M:%S")
-    IST_END=$(TZ="Asia/Kolkata" date -d "+35 minutes" +"%Y-%m-%d %H:%M:%S")
-
-    # Convert IST to UTC for ServiceNow API
-    SCHEDULED_START=$(TZ="UTC" date -d "$IST_START" +"%Y-%m-%d %H:%M:%S")
-    SCHEDULED_END=$(TZ="UTC" date -d "$IST_END" +"%Y-%m-%d %H:%M:%S")
+    SCHEDULED_START=$(date -d "+5 minutes" +"%Y-%m-%d %H:%M:%S")
+    SCHEDULED_END=$(date -d "+35 minutes" +"%Y-%m-%d %H:%M:%S")
 
     curl --silent --user "$SN_USER:$SN_PASS" -X PATCH \
       "https://$SN_INSTANCE/api/now/table/change_request/$SYS_ID" \
@@ -133,10 +128,8 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
             \"end_date\": \"$SCHEDULED_END\"
           }" > /dev/null
 
-    echo "🕒 Local IST Scheduled Start: $IST_START" | tee -a "$LOG_FILE"
-    echo "🕒 Local IST Scheduled End:   $IST_END" | tee -a "$LOG_FILE"
-    echo "🌐 UTC Scheduled Start: $SCHEDULED_START" | tee -a "$LOG_FILE"
-    echo "🌐 UTC Scheduled End:   $SCHEDULED_END" | tee -a "$LOG_FILE"
+    echo "⏰ Scheduled Start: $SCHEDULED_START" | tee -a "$LOG_FILE"
+    echo "⏰ Scheduled End:   $SCHEDULED_END" | tee -a "$LOG_FILE"
 
     SCHEDULED_EPOCH=$(date -d "$SCHEDULED_START" +%s)
     NOW_EPOCH=$(date +%s)
