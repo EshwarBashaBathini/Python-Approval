@@ -117,7 +117,7 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
 
   if [[ "$CHANGE_STATE" == "-2" && "$SCHEDULED_SET" == "false" ]]; then
     # Initial schedule setup
-    UTC_START=$(date -u -d "+1 minutes" +"%Y-%m-%d %H:%M:%S")
+    UTC_START=$(date -u -d "+3 minutes" +"%Y-%m-%d %H:%M:%S")
     UTC_END=$(date -u -d "+35 minutes" +"%Y-%m-%d %H:%M:%S")
 
     curl --silent --user "$SN_USER:$SN_PASS" -X PATCH \
