@@ -4,7 +4,7 @@
 # Script: Create and Monitor Change Request in ServiceNow
 # Purpose: Automates creation and monitoring of a change request via REST API
 # Author: Eshwar Basha Bathini
-# ================================
+# ===============================
 
 # ========== VARIABLES ==========
 SN_INSTANCE="dev214721.service-now.com"
